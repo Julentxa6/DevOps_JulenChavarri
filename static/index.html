@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Raspberry Pi Julen Chavarri</title>
+  <style>
+    :root {
+      --bg: #121316;
+      --panel: #1f2229;
+      --panel-alt: #23272f;
+      --border: #364150;
+      --text: #e8eef6;
+      --muted: #9aa4b1;
+      --green: #3acc7f;
+      --red: #ff5f57;
+      --yellow: #f7cc4b;
+      --blue: #63a7ff;
+      --glass: rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #313546 0%, #121316 40%, #090b0f 100%);
+    }
+
+    header {
+      padding: 28px 32px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2vw, 2.4rem);
+      letter-spacing: 0.03em;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+
+    main {
+      padding: 24px 32px 32px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .cards {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 16px 55px rgba(0, 0, 0, 0.18);
+      min-height: 180px;
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .metrics {
+      display: grid;
+      gap: 18px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: var(--panel-alt);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .metric strong {
+      font-size: 1.2rem;
+    }
+
+    .metric span {
+      color: var(--muted);
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .signal-card {
+      display: grid;
+      gap: 14px;
+      padding: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+    }
+
+    .signal-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .signal-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1);
+      transition: background 0.25s ease, transform 0.25s ease;
+    }
+
+    .signal-dot.on {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.16);
+    }
+
+    .signal-dot.green {
+      background: var(--green);
+    }
+
+    .signal-dot.red {
+      background: var(--red);
+    }
+
+    .signal-dot.yellow {
+      background: var(--yellow);
+    }
+
+    .audit-card {
+      overflow-x: auto;
+      padding: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    th {
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td {
+      font-size: 0.95rem;
+    }
+
+    td.event {
+      color: var(--blue);
+    }
+
+    .footer {
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding-top: 4px;
+    }
+
+    .compact {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .compact .status-pill {
+      min-width: 180px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Dashboard Raspberry Pi Julen Chavarri</h1>
+      <p>Visualiza telemetría y estado de periféricos en tiempo real.</p>
+    </div>
+    <div class="status-pill">Actualización automática cada 1 segundo</div>
+  </header>
+
+  <main>
+    <section class="grid cards">
+      <article class="card">
+        <h2>Telemetría</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div>
+              <strong id="temp-value">-- °C</strong>
+              <span>Temperatura NTC</span>
+            </div>
+          </div>
+          <div class="metric">
+            <div>
+              <strong id="light-value">-- lx</strong>
+              <span>Luminosidad LDR</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Periféricos</h2>
+        <div class="status-grid">
+          <div class="signal-card">
+            <p>Botón 1 (GPIO 14)</p>
+            <div class="status-pill">
+              <span class="signal-dot yellow" id="button-1-dot"></span>
+              <span id="button-1-label">Desactivado</span>
+            </div>
+          </div>
+          <div class="signal-card">
+            <p>Botón 2 (GPIO 15)</p>
+            <div class="status-pill">
+              <span class="signal-dot yellow" id="button-2-dot"></span>
+              <span id="button-2-label">Desactivado</span>
+            </div>
+          </div>
+          <div class="signal-card">
+            <p>LED Verde (GPIO 12)</p>
+            <div class="status-pill">
+              <span class="signal-dot green" id="led-green-dot"></span>
+              <span id="led-green-label">Apagado</span>
+            </div>
+          </div>
+          <div class="signal-card">
+            <p>LED Rojo (GPIO 13)</p>
+            <div class="status-pill">
+              <span class="signal-dot red" id="led-red-dot"></span>
+              <span id="led-red-label">Apagado</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card audit-card">
+      <h2>Auditoría de intentos</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Evento</th>
+              <th>IP de origen</th>
+              <th>Dispositivo</th>
+            </tr>
+          </thead>
+          <tbody id="audit-body">
+            <tr>
+              <td colspan="4" style="color: var(--muted);">Esperando registros...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer">Última actualización: <span id="updated-at">--:--:--</span></div>
+    </section>
+  </main>
+
+  <script>
+    const endpoints = {
+      status: '/status',
+    };
+
+    const elements = {
+      tempValue: document.getElementById('temp-value'),
+      lightValue: document.getElementById('light-value'),
+      button1Dot: document.getElementById('button-1-dot'),
+      button2Dot: document.getElementById('button-2-dot'),
+      ledGreenDot: document.getElementById('led-green-dot'),
+      ledRedDot: document.getElementById('led-red-dot'),
+      button1Label: document.getElementById('button-1-label'),
+      button2Label: document.getElementById('button-2-label'),
+      ledGreenLabel: document.getElementById('led-green-label'),
+      ledRedLabel: document.getElementById('led-red-label'),
+      auditBody: document.getElementById('audit-body'),
+      updatedAt: document.getElementById('updated-at'),
+    };
+
+function colorDot(dot, isOn) {
+      dot.classList.toggle('on', isOn);
+      // Ajustamos el color: si está encendido (isOn=true), usamos el color asignado. 
+      // Si está apagado, volvemos al color gris (muted).
+      if (isOn) {
+        if (dot.classList.contains('green')) dot.style.background = 'var(--green)';
+        else if (dot.classList.contains('red')) dot.style.background = 'var(--red)';
+        else dot.style.background = 'var(--yellow)'; // Caso de los botones (amarillo)
+      } else {
+        dot.style.background = 'var(--muted)';
+      }
+    }
+
+    function updatePeripheral(label, dot, value, onText, offText) {
+      // Aplicamos el texto según el valor recibido del servidor
+      label.textContent = value ? onText : offText;
+      // Aplicamos el color basándonos en el mismo valor
+      colorDot(dot, value);
+    }
+
+    
+    function formatTimestamp(value) {
+      try {
+        return new Date(value).toLocaleString('es-ES', { hour12: false });
+      } catch (err) {
+        return value;
+      }
+    }
+
+    function renderLogs(logs) {
+      elements.auditBody.innerHTML = '';
+      if (!logs.length) {
+        elements.auditBody.innerHTML = '<tr><td colspan="4" style="color: var(--muted);">No hay registros disponibles.</td></tr>';
+        return;
+      }
+
+      logs.slice().reverse().forEach((entry) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${formatTimestamp(entry.timestamp)}</td>
+          <td class="event">${entry.result}</td>
+          <td>${entry.ip}</td>
+          <td>${entry.user_agent}</td>
+        `;
+        elements.auditBody.appendChild(row);
+      });
+    }
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch(endpoints.status, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Error al leer el estado');
+        }
+
+        const data = await response.json();
+        
+       
+        const logs = data.logs || [];
+        const lastLog = logs.length > 0 ? logs[logs.length - 1] : null;
+        
+        const isAccessGranted = lastLog && lastLog.result === "ACCESO CONCEDIDO"; 
+
+        if (isAccessGranted) {
+            elements.tempValue.textContent = data.sensors.temperature_c !== null ? `${data.sensors.temperature_c} °C` : '-- °C';
+            elements.lightValue.textContent = data.sensors.luminosity_lux !== null ? `${data.sensors.luminosity_lux} lx` : '-- lx';
+        } else {
+            elements.tempValue.textContent = '-- °C';
+            elements.lightValue.textContent = '-- lx';
+        }    
+
+        const buttons = data.peripherals.buttons || {};
+        const leds = data.peripherals.leds || {};
+
+        updatePeripheral(elements.button1Label, elements.button1Dot, buttons['14'], 'Libre', 'Pulsado');
+        updatePeripheral(elements.button2Label, elements.button2Dot, buttons['15'], 'Libre', 'Pulsado');
+        updatePeripheral(elements.ledGreenLabel, elements.ledGreenDot, leds['12'], 'Encendido', 'Apagado');
+        updatePeripheral(elements.ledRedLabel, elements.ledRedDot, leds['13'], 'Encendido', 'Apagado');
+
+        renderLogs(logs);
+        elements.updatedAt.textContent = new Date().toLocaleTimeString('es-ES', { hour12: false });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    setInterval(refreshStatus, 1000);
+    refreshStatus();
+  </script>
+</body>
+</html>

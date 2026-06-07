@@ -1,0 +1,6 @@
+[
+  "test_main.py::test_access_attempt_invalid_button",
+  "test_main.py::test_access_attempt_sequence_granted",
+  "test_main.py::test_healthz_endpoint",
+  "test_main.py::test_status_endpoint_structure"
+]
