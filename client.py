@@ -24,36 +24,35 @@ botones_ok = False
 leds_ok = False
 adc_ok = False
 
-# 1. Botones 
 try:
-    boton_1 = Button(14, pull_up=False)
-    boton_2 = Button(15, pull_up=False)
+    # Se reactivan los botones localmente con pull_up=True para mantener el pin estable.
+    # Se añade bounce_time=0.2 (200 ms) para evitar falsos flancos o ráfagas repetidas.
+    boton_1 = Button(14, pull_up=True, bounce_time=0.2)
+    boton_2 = Button(15, pull_up=True, bounce_time=0.2)
     botones_ok = True
-    print("[client] Botones inicializados (Pines 14 y 15).")
+    print("[client] Botones inicializados localmente (Pines 14 y 15) con filtro de rebotes.")
 except Exception as e:
     print(f"[client] Error en botones: {e}")
 
-# 2. LEDs Físicos
 try:
     led_verde = LED(12)
     led_rojo = LED(13)
     leds_ok = True
-    print("[client] LEDs inicializados (Pines 12 y 13).")
+    print("[client] LEDs inicializados correctamente (Pines 12 y 13).")
 except Exception as e:
     print(f"[client] Error en LEDs: {e}")
 
-# 3. ADC (Corrección por índices numéricos)
 try:
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c)
-    canal_ntc = AnalogIn(ads, 0)  # Pin 0 del ADC
-    canal_ldr = AnalogIn(ads, 1)  # Pin 1 del ADC
+    canal_ntc = AnalogIn(ads, 0)
+    canal_ldr = AnalogIn(ads, 1)
     adc_ok = True
-    print("[client] ADC ADS1115 inicializado.")
+    print("[client] ADC ADS1115 operativo.")
 except Exception as e:
     print(f"[client] Error en ADC: {e}")
 
-# ------------------------------------
+# ------------------------------------------------------------
 
 def post_json(endpoint: str, payload: Dict) -> Dict:
     url = f"{API_BASE_URL}{endpoint}"
@@ -67,52 +66,63 @@ def post_json(endpoint: str, payload: Dict) -> Dict:
         print(f"[client] Error en comunicación con {endpoint}: {exc}")
     return {}
 
-def actualizar_leds_locales(respuesta_servidor: Dict) -> None:
-    """Modifica los pines de los LEDs basándose en la respuesta de la API."""
-    if not leds_ok or not respuesta_servidor:
+def fetch_and_sync_status() -> None:
+    """Consulta el endpoint /status para replicar el estado de los LEDs dictado por el backend."""
+    if not leds_ok:
         return
-    
-    # Se extrae el estado de los componentes devuelto por el backend
-    # Ajustar las claves ('led_verde', 'led_rojo') según la respuesta exacta de tu API
-    estado_perifericos = respuesta_servidor.get("peripherals", {})
-    
-    if "led_verde" in estado_perifericos:
-        if estado_perifericos["led_verde"] == "Encendido" or estado_perifericos["led_verde"] is True:
-            led_verde.on()
-        else:
-            led_verde.off()
-
-    if "led_rojo" in estado_perifericos:
-        if estado_perifericos["led_rojo"] == "Encendido" or estado_perifericos["led_rojo"] is True:
-            led_rojo.on()
-        else:
-            led_rojo.off()
+    url = f"{API_BASE_URL}/status"
+    request = urllib.request.Request(url, headers=HEADERS, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            res_json = json.loads(response.read().decode("utf-8"))
+            
+            perif = res_json.get("peripherals", {})
+            leds_state = perif.get("leds", {}) 
+            
+            # Sincronización de los LEDs basándose en la respuesta del backend
+            estado_v = leds_state.get("12", leds_state.get(12, False))
+            estado_r = leds_state.get("13", leds_state.get(13, False))
+            
+            if estado_v:
+                led_verde.on()
+            else:
+                led_verde.off()
+                
+            if estado_r:
+                led_rojo.on()
+            else:
+                led_rojo.off()
+    except Exception as exc:
+        print(f"[client] Error sincronizando LEDs desde /status: {exc}")
 
 def send_access_attempt(button_id: int) -> None:
-    print(f"[client] Botón {button_id} pulsado. Enviando intento...")
-    result = post_json("/access/attempt", {"button_id": button_id})
-    # Al recibir la respuesta del intento de acceso, se actualizan los LEDs inmediatamente
-    actualizar_leds_locales(result)
+    """Envía la pulsación detectada localmente hacia el endpoint de la API."""
+    print(f"[client] Botón {button_id} presionado físicamente. Enviando intento a la API...")
+    
+    post_json("/access/attempt", {"button_id": button_id}) 
+    
+    # Se espera un instante a que el backend procese el cambio y se actualizan los LEDs locales
+    time.sleep(0.1)
+    fetch_and_sync_status()
 
 def send_telemetry() -> None:
+    """Envía los reportes de los sensores usando el modelo estricto TelemetryReport."""
     temp_c = round(canal_ntc.voltage * 10, 2) if adc_ok else 0.0
     lux = round(canal_ldr.voltage * 100, 2) if adc_ok else 0.0
 
-    # Se lee el estado lógico invertido si se usa pull-up interno, 
-    # para enviar al servidor si realmente están presionados (True) o no (False)
     payload = {
         "temperature_c": temp_c,
         "luminosity_lux": lux,
-        "button_1_pressed": boton_1.is_pressed if botones_ok else False,
-        "button_2_pressed": boton_2.is_pressed if botones_ok else False,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
     
-    print(f"[client] Enviando telemetría y estados: {payload}")
-    result = post_json("/telemetry", payload)
-    # La telemetría cíclica también aprovecha para actualizar los LEDs si cambiaron desde la web
-    actualizar_leds_locales(result)
+    print(f"[client] Enviando telemetría válida: {payload}")
+    post_json("/telemetry", payload) 
+    
+    # Se aprovecha el ciclo automático de telemetría para refrescar el estado de los LEDs
+    fetch_and_sync_status()
 
+# Se asignan los eventos de interrupción locales de forma directa
 if botones_ok:
     boton_1.when_pressed = lambda: send_access_attempt(1)
     boton_2.when_pressed = lambda: send_access_attempt(2)
@@ -134,7 +144,7 @@ def interactive_loop(auto: bool = False, telemetry_interval: float = 2.0) -> Non
             if cmd == "q": break
             if cmd == "t": send_telemetry()
     except KeyboardInterrupt:
-        print("Detenido.")
+        print("Detenido por el usuario.")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
