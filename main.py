@@ -25,6 +25,8 @@ state: Dict[str, Any] = {
     "current_sequence": [],
     "failed_attempts": 0,
     "logs": [],
+    # SE AÑADE: Estado virtual de los botones para el Dashboard
+    "buttons": {"14": True, "15": True},
 }
 
 
@@ -127,7 +129,22 @@ def _handle_button_press(button_id: int, request: Optional[Request] = None) -> D
 
 @app.post("/access/attempt")
 async def access_attempt(attempt: AccessAttempt, request: Request) -> Dict[str, Any]:
-    return _handle_button_press(attempt.button_id, request=request)
+    # SE AÑADE: Identificación del pin para el Dashboard
+    pin_afectado = "14" if attempt.button_id == 1 else "15"
+    
+    # SE AÑADE: Forzar cambio visual a False (Pulsado)
+    state["buttons"][pin_afectado] = False
+    
+    response = _handle_button_press(attempt.button_id, request=request)
+    
+    # SE AÑADE: Tarea asíncrona para liberar el botón en la web
+    async def liberar_boton():
+        await asyncio.sleep(0.5)
+        state["buttons"][pin_afectado] = True
+        
+    asyncio.create_task(liberar_boton())
+    
+    return response
 
 
 async def _monitor_buttons_loop() -> None:
@@ -158,7 +175,8 @@ async def status() -> Dict[str, Any]:
     sensors = hardware.get_sensor_readings()
     peripherals = {
         "leds": hardware.get_led_states(),
-        "buttons": hardware.get_button_states(),
+        # SE MODIFICA: Ahora lee el estado interno reactivo en lugar de hardware ciego
+        "buttons": state["buttons"],
     }
     return {
         "sensors": sensors,
