@@ -395,8 +395,8 @@ function colorDot(dot, isOn) {
         const buttons = data.peripherals.buttons || {};
         const leds = data.peripherals.leds || {};
 
-        updatePeripheral(elements.button1Label, elements.button1Dot, buttons['14'], 'Libre', 'Pulsado');
-        updatePeripheral(elements.button2Label, elements.button2Dot, buttons['15'], 'Libre', 'Pulsado');
+        updatePeripheral(elements.button1Label, elements.button1Dot, buttons['14'], 'Pulsado', 'Libre');
+        updatePeripheral(elements.button2Label, elements.button2Dot, buttons['15'], 'Pulsado', 'Libre');
         updatePeripheral(elements.ledGreenLabel, elements.ledGreenDot, leds['12'], 'Encendido', 'Apagado');
         updatePeripheral(elements.ledRedLabel, elements.ledRedDot, leds['13'], 'Encendido', 'Apagado');
 
