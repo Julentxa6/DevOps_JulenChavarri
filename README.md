@@ -1,4 +1,4 @@
-# Raspberry Pi Hardware Project
+# Proyecto Informática Industrial
 
 Este proyecto independiente contiene la gestión de periféricos para una Raspberry Pi 5:
 
