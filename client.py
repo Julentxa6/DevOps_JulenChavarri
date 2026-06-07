@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict
 
 # Cambia entre la URL local y la URL de producción en Render
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "https://devops-julenchavarri.onrender.com"
 # API_BASE_URL = "https://tu-app-en-render.onrender.com"
 
 HEADERS = {

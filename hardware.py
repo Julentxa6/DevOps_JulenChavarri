@@ -5,6 +5,18 @@ from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger("rpi_hardware_project.hardware")
 
+
+def is_raspberry_pi():
+    # Verifica si existe el archivo que identifica a la RPi
+    return os.path.exists('/proc/device-tree/model')
+
+# Ejemplo de cómo envolver la inicialización
+if is_raspberry_pi():
+    from gpiozero import LED, Button
+    # Aquí iría tu código de inicialización real
+else:
+    print("Modo simulación: Hardware físico ignorado")
+
 try:
     from gpiozero import Device, LED, Button
 except Exception as exc:
