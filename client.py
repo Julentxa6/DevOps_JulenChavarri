@@ -6,7 +6,7 @@ import urllib.request
 from datetime import datetime
 from typing import Dict
 
-# Importaciones para el hardware físico
+# Importaciones para el hardware físico de la Raspberry Pi
 from gpiozero import Button
 import board
 import busio
@@ -20,22 +20,34 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-# --- INICIALIZACIÓN DEL HARDWARE ---
+# --- INICIALIZACIÓN DEL HARDWARE EN BLOQUES SEPARADOS ---
+botones_ok = False
+adc_ok = False
+
+# 1. Inicialización de los Botones
 try:
     boton_1 = Button(14)
     boton_2 = Button(15)
+    botones_ok = True
+    print("[client] Botones físicos (pines 14 y 15) inicializados correctamente.")
+except Exception as e:
+    print(f"[client] Error inicializando botones físicos: {e}")
 
+# 2. Inicialización del ADC (Con corrección de constantes)
+try:
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c)
-    canal_ntc = AnalogIn(ads, ADS.P0)
-    canal_ldr = AnalogIn(ads, ADS.P1)
     
-    hardware_ok = True
-    print("[client] Hardware físico inicializado correctamente.")
+    # CORRECCIÓN SINTAXIS: Se utiliza AnalogIn.P0 y AnalogIn.P1
+    canal_ntc = AnalogIn(ads, 1)
+    canal_ldr = AnalogIn(ads, 0)
+    adc_ok = True
+    print("[client] ADC ADS1115 e hilos analógicos inicializados correctamente.")
 except Exception as e:
-    print(f"[client] Error inicializando hardware físico: {e}")
-    hardware_ok = False
-# -----------------------------------
+    print(f"[client] Error inicializando ADC: {e}")
+
+hardware_ok = botones_ok or adc_ok
+# -------------------------------------------------------
 
 def post_json(endpoint: str, payload: Dict) -> Dict:
     url = f"{API_BASE_URL}{endpoint}"
@@ -58,14 +70,13 @@ def post_json(endpoint: str, payload: Dict) -> Dict:
     return {}
 
 def send_access_attempt(button_id: int) -> None:
-    print(f"[client] Botón {button_id} registrado. Enviando intento de acceso...")
+    print(f"[client] Botón {button_id} pulsado físicamente. Enviando intento de acceso...")
     result = post_json("/access/attempt", {"button_id": button_id})
-    print(f"[client] Respuesta de acceso: {result}")
+    print(f"[client] Respuesta de acceso del servidor: {result}")
 
 def send_telemetry() -> None:
-    # Se obtienen los datos físicos si el hardware está disponible
-    if hardware_ok:
-        # Nota: Ajustar estas conversiones según las fórmulas matemáticas reales de los sensores
+    if adc_ok:
+        # Reemplazar con las ecuaciones reales de calibración si fuera necesario
         temp_c = round(canal_ntc.voltage * 10, 2)
         lux = round(canal_ldr.voltage * 100, 2)
     else:
@@ -77,18 +88,20 @@ def send_telemetry() -> None:
         "luminosity_lux": lux,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
-    print(f"[client] Enviando telemetría: {payload}")
+    print(f"[client] Enviando telemetría real: {payload}")
     result = post_json("/telemetry", payload)
-    print(f"[client] Respuesta de telemetría: {result}")
+    print(f"[client] Respuesta de telemetría del servidor: {result}")
 
-# Vinculación de eventos físicos: Se ejecuta la función al pulsar los botones reales
-if hardware_ok:
+# --- VINCULACIÓN ASÍNCRONA DE EVENTOS ---
+if botones_ok:
     boton_1.when_pressed = lambda: send_access_attempt(1)
     boton_2.when_pressed = lambda: send_access_attempt(2)
+    print("[client] Eventos físicos asignados a los botones.")
+# -----------------------------------------
 
 def interactive_loop(auto: bool = False, telemetry_interval: float = 5.0) -> None:
-    print("Cliente iniciado. Los botones físicos ya están activos.")
-    print("Opciones manuales: '1' o '2' para enviar acceso manual, 't' para telemetría, 'q' para salir.")
+    print("Cliente HTTP activo.")
+    print("Controles manuales por teclado: '1' o '2' para forzar accesos, 't' para telemetría, 'q' para salir.")
     last_telemetry = 0.0
     try:
         while True:
@@ -97,11 +110,9 @@ def interactive_loop(auto: bool = False, telemetry_interval: float = 5.0) -> Non
                 if now - last_telemetry >= telemetry_interval:
                     send_telemetry()
                     last_telemetry = now
-                # Se elimina la pulsación aleatoria simulada para priorizar el hardware real
                 time.sleep(0.1)
                 continue
 
-            # Modo interactivo por teclado
             cmd = input("cmd> ").strip().lower()
             if cmd == "q":
                 print("Saliendo.")
