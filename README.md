@@ -1,23 +1,26 @@
-# Proyecto Informática Industrial
+# Proyecto Informática Industrial 
 
-Este proyecto independiente contiene la gestión de periféricos para una Raspberry Pi 5:
+Este proyecto implementa un sistema de gestión de periféricos y control de acceso seguro para Raspberry Pi 5.
 
-- Dos botones físicos en GPIO 17 y 27
-- Dos LEDs en GPIO 22 (verde) y GPIO 24 (rojo)
-- Un ADC ADS1115 conectado por I2C para un sensor NTC (temperatura) y un LDR (luminosidad)
+## Características
+- **Control de Acceso:** Sistema basado en una secuencia física de botones.
+- **Periféricos:** - Dos botones físicos (configurables vía GPIO).
+  - Dos LEDs (verde para éxito, rojo para fallo).
+  - Sensor analógico (NTC/LDR) mediante ADC ADS1115 (I2C).
+- **Compatibilidad:** Modo emulado para despliegue en la nube (Render) sin necesidad de hardware físico.
 
-El código está preparado para desplegarse en entornos que no disponen de las librerías de hardware. Si `gpiozero`, `adafruit_ads1x15`, `busio` o `board` no están disponibles, el proyecto usa clases de emulación que mantienen estados lógicos coherentes y valores de sensor estables.
+## Lógica de Acceso (Contraseña)
+El sistema valida la identidad del usuario mediante una secuencia de pulsaciones en los botones físicos:
 
-## Uso
+1. **Secuencia Requerida:** `Botón 1` -> `Botón 2` -> `Botón 1`.
+2. **Retroalimentación:**
+   - **Éxito:** Si la secuencia es correcta, el LED verde (GPIO 12) se activará durante 3 segundos.
+   - **Fallo:** Tras 3 intentos incorrectos, el LED rojo (GPIO 13) se activará durante 3 segundos y el intento quedará registrado en la auditoría del Dashboard.
 
-```bash
-python hardware.py
-```
+## Despliegue y Uso
 
-## Requisitos
-
-Instalar desde `requirements.txt` si se desea ejecutar con hardware real:
-
+### Ejecución Local
+Para ejecutar en una Raspberry Pi con el hardware conectado:
 ```bash
 pip install -r requirements.txt
-```
+python client.py -> ejecutar con: "GPIOZERO_PIN_FACTORY=lgpio .venv/bin/python client.py --auto"
