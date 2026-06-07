@@ -26,7 +26,7 @@ state: Dict[str, Any] = {
     "failed_attempts": 0,
     "logs": [],
     # SE AÑADE: Estado virtual de los botones para el Dashboard
-    "buttons": {"14": True, "15": True},
+    "buttons": {"14": False, "15": False},
 }
 
 
@@ -132,15 +132,15 @@ async def access_attempt(attempt: AccessAttempt, request: Request) -> Dict[str, 
     # SE AÑADE: Identificación del pin para el Dashboard
     pin_afectado = "14" if attempt.button_id == 1 else "15"
     
-    # SE AÑADE: Forzar cambio visual a False (Pulsado)
-    state["buttons"][pin_afectado] = False
+    # SE AÑADE: Forzar cambio visual a True
+    state["buttons"][pin_afectado] = True
     
     response = _handle_button_press(attempt.button_id, request=request)
     
     # SE AÑADE: Tarea asíncrona para liberar el botón en la web
     async def liberar_boton():
         await asyncio.sleep(0.5)
-        state["buttons"][pin_afectado] = True
+        state["buttons"][pin_afectado] = False
         
     asyncio.create_task(liberar_boton())
     
