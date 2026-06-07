@@ -139,7 +139,7 @@ async def access_attempt(attempt: AccessAttempt, request: Request) -> Dict[str, 
     
     # SE AÑADE: Tarea asíncrona para liberar el botón en la web
     async def liberar_boton():
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1.5)
         state["buttons"][pin_afectado] = False
         
     asyncio.create_task(liberar_boton())
